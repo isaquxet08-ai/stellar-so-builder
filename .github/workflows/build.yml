@@ -30,12 +30,13 @@ jobs:
 
     - name: Build All SOs
       run: |
+        # 编译所有目标，不指定单一 target
         cmake --build build -- -j4
 
     - name: Package SOs
       run: |
         mkdir -p output
-        # 把所有生成的 .so 文件放进一个文件夹里
+        # 把所有生成的 .so 文件搜集起来
         find build -name "*.so" -exec cp {} output/ \;
         cd output && zip -r ../so-modules.zip . && cd ..
 
@@ -51,7 +52,7 @@ jobs:
         tag_name: so-build-${{ github.run_number }}
         name: 预编译模块包 (Build ${{ github.run_number }})
         body: |
-          包含 libstellar.so 等底层核心文件，主项目会自动拉取。
+          包含 libstellar.so, libadb.so 等底层核心文件。
         files: so-modules.zip
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
