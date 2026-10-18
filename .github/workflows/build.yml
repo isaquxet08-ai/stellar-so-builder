@@ -2,8 +2,11 @@ name: Build Native SO
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "master", "main" ]
   workflow_dispatch:
+
+permissions:
+  contents: write # 必须给权限才能发布 Release
 
 jobs:
   build:
@@ -29,8 +32,22 @@ jobs:
       run: |
         cmake --build build --target libstellar.so -- -j4
 
-    - name: Upload SO
+    # 依然保留上传 Artifact（备用）
+    - name: Upload SO Artifact
       uses: actions/upload-artifact@v4
       with:
         name: libstellar
         path: build/libstellar.so
+
+    # 👇 核心：自动发布到 Releases，并带上递增标识
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: so-build-${{ github.run_number }}
+        name: 预编译核心 libstellar.so (Build ${{ github.run_number }})
+        body: |
+          这是自动编译生成的底层核心文件，编译批次号：${{ github.run_number }}。
+          主项目会自动拉取此最新文件。
+        files: build/libstellar.so
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
