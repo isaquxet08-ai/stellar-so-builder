@@ -20,6 +20,26 @@ jobs:
         ndk-version: r26b
         add-to-path: true
 
+    - name: Setup Go (BoringSSL needs it)
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.21'
+
+    - name: Install Ninja
+      run: sudo apt-get install -y ninja-build
+
+    # 🔨 魔法：从 AOSP 官方拉取 BoringSSL 源码并交叉编译
+    - name: Build BoringSSL for Android
+      run: |
+        git clone --depth 1 https://boringssl.googlesource.com/boringssl
+        cd boringssl
+        mkdir build && cd build
+        cmake -GNinja -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
+              -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-28 \
+              -DCMAKE_BUILD_TYPE=Release ..
+        ninja crypto ssl
+
+    # 🔨 编译咱们的 3 个核心模块
     - name: Configure CMake
       run: |
         cmake -B build \
@@ -30,13 +50,11 @@ jobs:
 
     - name: Build All SOs
       run: |
-        # 编译所有目标，不指定单一 target
         cmake --build build -- -j4
 
     - name: Package SOs
       run: |
         mkdir -p output
-        # 把所有生成的 .so 文件搜集起来
         find build -name "*.so" -exec cp {} output/ \;
         cd output && zip -r ../so-modules.zip . && cd ..
 
@@ -52,7 +70,7 @@ jobs:
         tag_name: so-build-${{ github.run_number }}
         name: 预编译模块包 (Build ${{ github.run_number }})
         body: |
-          包含 libstellar.so, libadb.so 等底层核心文件。
+          包含 libstellar.so, libchid.so, 以及打通 BoringSSL 的 libadb.so。
         files: so-modules.zip
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
